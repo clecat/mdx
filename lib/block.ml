@@ -27,6 +27,8 @@ type value =
   | Cram of cram_value
   | Toplevel of Toplevel.t list
 
+type label = { s: string; t: [`Label | `Prefix]; vs: [ `Any | `None | `Some of string ] list }
+
 type t = {
   line    : int;
   file    : string;
@@ -141,14 +143,15 @@ let pp ?syntax ppf b =
   pp_footer ?syntax ppf ()
 
 let labels = [
-  "dir"              , [`Any];
-  "source-tree"      , [`Any];
-  "file"             , [`Any];
-  "part"             , [`Any];
-  "env"              , [`Any];
-  "skip"             , [`None];
-  "non-deterministic", [`None; `Some "command"; `Some "output"];
-  "version"          , [`Any];
+  {s = "dir"              ; t = `Label ; vs = [`Any]};
+  {s = "source-tree"      ; t = `Label ; vs = [`Any]};
+  {s = "file"             ; t = `Label ; vs = [`Any]};
+  {s = "part"             ; t = `Label ; vs = [`Any]};
+  {s = "env"              ; t = `Label ; vs = [`Any]};
+  {s = "skip"             ; t = `Label ; vs = [`None]};
+  {s = "non-deterministic"; t = `Label ; vs = [`None; `Some "command"; `Some "output"]};
+  {s = "version"          ; t = `Label ; vs = [`Any]};
+  {s = "set-"             ; t = `Prefix; vs = [`Any]};
 ]
 
 let pp_value ppf = function
@@ -175,20 +178,22 @@ let rec pp_list pp ppf = function
 let check_labels t =
   List.fold_left (fun acc (k, v) ->
       try
-        let vs = List.assoc k labels in
-        if List.exists (match_label v) vs then acc
+        let f = function
+        | {s; t = `Label; _} -> s = k
+        | {s; t = `Prefix; _} -> String.equal (String.with_range ~len:(String.length s) k) s in
+        let l = List.find f labels in
+        if List.exists (match_label v) l.vs then acc
         else
           Fmt.strf "%a is not a valid value for label %S. \
                     Valid values are %a."
-            pp_v v k (pp_list pp_value) vs
+            pp_v v k (pp_list pp_value) l.vs
           :: acc
       with Not_found ->
-        if String.equal (String.with_range ~len:4 k) "set-"
-        then acc
-        else
-        Fmt.strf "%S is not a valid label. \
-                  Valid labels are %a."
-          k (pp_list dump_string) (List.map fst labels)
+        let ls, ps = List.partition (fun v -> v.t = `Label) labels in
+        Fmt.strf "%S is not a valid label or prefix. \
+                  Valid labels are %a and valid prefixes are %a."
+          k (pp_list dump_string) (List.map (fun v -> v.s) ls)
+          (pp_list dump_string) (List.map (fun v -> v.s) ps)
         :: acc
     ) [] t.labels
   |> function
