@@ -106,12 +106,14 @@ let run () file output =
     Fmt.pr "Generating %s...\n%!" output;
     Fmt.kstrf
       Sys.command
-      "pandoc \
+      (* "pandoc \
       \  --section-divs \
       \  -f markdown-ascii_identifiers \
       \  --no-highlight\
       \  -t html5 %s -o %s"
-      tmp output
+      tmp output *)
+      "omd -o %s -- %s"
+      output tmp
 
 open Cmdliner
 
