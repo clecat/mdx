@@ -27,6 +27,8 @@ type value =
   | Cram of cram_value
   | Toplevel of Toplevel.t list
 
+type label = { s: string; t: [`Label | `Prefix]; vs: [ `Any | `None | `Some of string ] list }
+
 type t = {
   line    : int;
   file    : string;
@@ -185,7 +187,7 @@ let check_labels t =
         else
           Fmt.strf "%a is not a valid value for label %S. \
                     Valid values are %a."
-            pp_v v k (pp_list pp_value) vs
+            pp_v v k (pp_list pp_value) l.vs
           :: acc
       with Not_found ->
         let f = function
