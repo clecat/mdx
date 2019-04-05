@@ -149,7 +149,6 @@ let labels = [
   "skip"             , [`None];
   "non-deterministic", [`None; `Some "command"; `Some "output"];
   "version"          , [`Any];
-  "var"              , [`Any];
 ]
 
 let pp_value ppf = function
@@ -184,8 +183,11 @@ let check_labels t =
             pp_v v k (pp_list pp_value) vs
           :: acc
       with Not_found ->
+        if String.equal (String.with_range ~len:4 k) "set-"
+        then acc
+        else
         Fmt.strf "%S is not a valid label. \
-                  Valid labels are are %a."
+                  Valid labels are %a."
           k (pp_list dump_string) (List.map fst labels)
         :: acc
     ) [] t.labels
@@ -202,6 +204,14 @@ let get_labels t label =
       if String.equal k label then match v with
         | None   -> assert false
         | Some v -> v ::acc
+      else acc
+    ) [] t.labels
+
+let get_prefixed_labels t prefix =
+  List.fold_left (fun acc (k, v) ->
+      if String.equal (String.with_range ~len:(String.length prefix) k) prefix then match v with
+        | None   -> assert false
+        | Some (e, s) -> (e, (String.with_range ~first:(String.length prefix) k, s)) ::acc
       else acc
     ) [] t.labels
 
@@ -255,14 +265,12 @@ let environment t = match get_label t "env" with
   | Some (Some (`Eq, s)) -> s
   | Some (Some _) -> Fmt.failwith "invalid `env` label value"
 
-let variable t = match get_label t "var" with
-  | None
-  | Some None -> None
-  | Some (Some (`Eq, f)) ->
-    (match (Misc.parse_env_var f) with
-    | None -> None
-    | Some f -> Some f)
-  | Some (Some _) -> Fmt.failwith "invalid `var` label value"
+let variables t =
+  let f = function
+    | (`Eq, (k, v)) -> (k, v)
+    | _ -> Fmt.failwith "invalid env variable operator (use '=' only)"
+  in
+  List.map f (get_prefixed_labels t "set-")
 
 let value t = t.value
 let section t = t.section

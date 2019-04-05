@@ -1,8 +1,11 @@
 Environment variable can also loaded in an environment
 
-```ocaml var=FOO=bar
+```ocaml set-FOO=bar,set-BAR=foo
   # print_endline (Sys.getenv "FOO")
   bar
+  - : unit = ()
+  # print_endline (Sys.getenv "BAR")
+  foo
   - : unit = ()
 ```
 
