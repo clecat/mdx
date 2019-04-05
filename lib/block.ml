@@ -272,7 +272,7 @@ let environment t = match get_label t "env" with
 
 let variables t =
   let f = function
-    | (`Eq, (k, v)) -> (k, v)
+    | `Eq, x -> x
     | _ -> Fmt.failwith "invalid env variable operator (use '=' only)"
   in
   List.map f (get_prefixed_labels t "set-")

@@ -89,7 +89,7 @@ val environment: t -> string
     are run. *)
 
 val variables: t -> (string * string) list
-(** [variable t] is the name given to the environment variable and it's value *)
+(** [variable t] is the list of environment variable to set and their values *)
 
 val skip: t -> bool
 (** [skip t] is true iff [skip] is in the labels of [t]. *)
