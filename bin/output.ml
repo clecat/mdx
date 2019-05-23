@@ -81,8 +81,148 @@ let pp_block ppf (b:Mdx.Block.t) =
     | [] -> ()
     | _  -> Fmt.pf ppf " %a" Fmt.(list ~sep:(unit " ") pp_attr) attrs
   in
-  Fmt.pf ppf "<div class=\"highlight\"><pre%a><code%a>%t</code></pre></div>"
+  Fmt.pf ppf "<div class=\"highlight\">\n<pre%a><code%a>%t</code></pre>\n</div>"
     pp_attrs () pp_lang () pp_code
+
+let get_id s =
+  let n = String.length s in
+  let rec loop i =
+    match String.index_from_opt s i '{' with
+      | Some b ->
+        begin
+        if b < n && s.[b + 1] = '#'
+        then
+          match String.index_from_opt s (b + 1) '}' with
+          | Some e when e = n - 1 -> Some (String.sub s (b + 2) (e - b - 2))
+          | _ -> None
+        else loop (b + 1)
+        end
+      | None -> None
+  in
+  loop 0
+
+let remove_id s =
+  let n = String.length s in
+  let rec loop i =
+    match String.index_from_opt s i '{' with
+      | Some b ->
+        begin
+        if b < n && s.[b + 1] = '#'
+        then
+          match String.index_from_opt s (b + 1) '}' with
+          | Some e when e = n - 1 -> String.sub s 0 b
+          | _ -> s
+        else loop (b + 1)
+        end
+      | None -> s
+    in
+    loop 0
+
+let id_of_string s =
+  let n = String.length s in
+  match get_id s with
+  | Some id -> id
+  | None ->
+    let id = Buffer.create 64 in
+    let rec trim i =
+      if i = n then n
+      else begin
+        match s.[i] with
+        | 'a' .. 'z' | 'A' .. 'Z' -> i
+        | _ -> trim (i + 1)
+      end
+    and loop keep i =
+      if i = n then begin if not keep then Buffer.truncate id (Buffer.length id - 1) end
+      else begin
+        match s.[i] with
+        | 'A' .. 'Z' as c ->
+            Buffer.add_char id (Char.lowercase_ascii c) ;
+            loop true (i + 1)
+        | 'a' .. 'z' | '0' .. '9' | '_' | '-' | '.' as c ->
+            Buffer.add_char id c ;
+            loop true (i + 1)
+        | ' ' | '\n' ->
+            if keep then
+            Buffer.add_char id '-' ;
+            loop false (i + 1)
+        | _ ->
+            loop keep (i + 1)
+      end
+    in
+    loop true (trim 0); Bytes.to_string (Buffer.to_bytes id)
+
+let typo s =
+  let n = String.length s in
+  let out = Buffer.create 64 in
+  let rec loop i =
+    if i = n then ()
+    else begin
+      match s.[i] with
+      | '.' when i + 1 < n && s.[i + 1] = '.' && s.[i + 2] = '.' ->
+          Buffer.add_string out "…";
+          loop (i + 3)
+      | '-' when i + 1 < n && s.[i + 1] = '-' && s.[i + 2] = '-' ->
+          Buffer.add_string out "—";
+          loop (i + 3)
+      | '-' when i < n && s.[i + 1] = '-' ->
+          Buffer.add_string out "–";
+          loop (i + 2)
+      | c ->
+          Buffer.add_char out c;
+          loop (i + 1)
+    end
+  in
+  loop 0; Bytes.to_string (Buffer.to_bytes out)
+
+let printer =
+  let headings = ref [] in
+  let id_printer = 
+    { Omd.default_printer with
+      text = (fun _ b t -> Buffer.add_string b (typo t))
+    ; emph = (fun p b e -> p.inline p b e.content)
+    ; code = (fun _ b _ c -> Buffer.add_string b (typo c))
+    ; hard_break = (fun _ _ -> ())
+    ; soft_break = (fun _ _ -> ())
+    ; html = (fun _ _ _ -> ())
+    ; link = (fun p b l -> p.inline p b l.def.label)
+    ; ref = (fun p b r -> p.inline p b r.label)}
+  in
+  let print_heading (p: Omd.printer) b i md =
+    let f j =
+      if i <= j
+      then
+        (Buffer.add_string b (Printf.sprintf "</section>\n"); false)
+      else
+        true in
+    headings := i::(List.filter f !headings);
+    let id = Buffer.create 64 in
+    id_printer.inline id_printer id md;
+    let id = id_of_string (Bytes.to_string (Buffer.to_bytes id)) in
+    let id = if id = "" then "section" else id in
+    let hd_printer = { p with text = (fun p b t -> Omd.default_printer.text p b (remove_id t |> typo)) } in
+    let hd = Buffer.create 64 in
+    hd_printer.inline hd_printer hd md;
+    Buffer.add_string b (Printf.sprintf "<section id=\"%s\" class=\"level%d\">\n<h%d>" id i i);
+    Buffer.add_string b (String.trim (Bytes.to_string (Buffer.to_bytes hd)));
+    Buffer.add_string b (Printf.sprintf "</h%d>" i);
+  in
+  let document_print p b md =
+    Omd.default_printer.document p b md;
+    List.iter (fun _ -> Buffer.add_string b (Printf.sprintf "</section>\n")) !headings
+  in
+  { Omd.default_printer with document = document_print; heading = print_heading }
+
+let omd input output =
+  let output = open_out_bin output in
+  let process ic =
+    let md = Omd.of_channel ic in
+    output_string output (Omd.to_html ~printer md);
+    flush output
+  in
+  let ic = open_in input in
+  match process ic with
+  | () -> close_in ic; 0
+  | exception e -> close_in_noerr ic; raise e
 
 let run () file output =
   let t = Mdx.parse_file Normal file in
@@ -104,16 +244,7 @@ let run () file output =
     close_out oc;
     let output = match output with None -> "-" | Some o -> o in
     Fmt.pr "Generating %s...\n%!" output;
-    Fmt.kstrf
-      Sys.command
-      (* "pandoc \
-      \  --section-divs \
-      \  -f markdown-ascii_identifiers \
-      \  --no-highlight\
-      \  -t html5 %s -o %s"
-      tmp output *)
-      "omd -o %s -- %s"
-      output tmp
+    omd tmp output
 
 open Cmdliner
 
