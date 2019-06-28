@@ -9,13 +9,13 @@
 <section id="test2-and-titi" class="level1">
 <h1>Test2, <toto> and titi!</h1>
 <p>yo!</p>
-</section>
-<section id="test3-toto-and-titi" class="level1">
-<h1>Test3, <span class="toto">toto</a> and titi!</h1>
+<section id="test3-toto-and-titi" class="level2">
+<h2>Test3, <span class="toto">toto</a> and titi!</h2>
 <p>haha!!</p>
 </section>
+</section>
 <section id="test4-toto-a.nd.-io" class="level1">
-<h1>–Test4, ?toto! a.nd. I/O</h1>
+<h1>–Test4, ?toto! … a.nd. I/O —</h1>
 <p>foo</p>
 <div class="highlight">
 <pre><code class="language-ocaml">type &lt;record-name&gt; =
@@ -24,4 +24,8 @@
       ...
     }</code></pre>
 </div>
+</section>
+<section id="test5-toto" class="level1">
+<h1>Test5, <a href="titi">toto</a></h1>
+<p>titi link</p>
 </section>

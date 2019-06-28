@@ -10,11 +10,11 @@ titi
 
 yo!
 
-# Test3, <span class="toto">toto</a> and titi!
+## Test3, <span class="toto">toto</a> and titi!
 
 haha!!
 
-# --Test4, ?toto! a.nd. I/O
+# --Test4, ?toto! ... a.nd. I/O ---
 
 foo
 
@@ -26,3 +26,7 @@ type <record-name> =
       ...
     }
 ```
+
+# Test5, [toto](titi)
+
+titi link
