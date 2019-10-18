@@ -15,7 +15,7 @@ build: [
 
 depends: [
   "ocaml" {>= "4.02.3"}
-  "dune"
+  "dune" {>= "1.11.0"}
   "ocamlfind"
   "fmt"
   "cppo" {build}
@@ -24,10 +24,12 @@ depends: [
   "cmdliner"
   "re" {>= "1.7.2"}
   "result"
+  "rresult"
   "ocaml-migrate-parsetree" {>= "1.0.6"}
   "ocaml-version" {>= "2.3.0"}
   "lwt" {with-test}
   "conf-pandoc" {with-test}
+  "alcotest" {with-test}
 ]
 
 synopsis: "Executable code blocks inside markdown files"
