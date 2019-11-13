@@ -129,7 +129,8 @@ let pp_text_latex ppf l =
           let m = String.sub ~start:(j + 1) ~stop:i t |> String.Sub.to_string |> String.fold_left escape_latex [] |> List.rev |> String.concat |> Fmt.strf "\\index{%s}" in
           let e = String.sub ~start:(i + 7) t |> String.Sub.to_string in
           f b (m::e::acc)
-      end  in
+      end
+  in
   let t = f t [] in
   List.iter (Fmt.pf ppf "%s") t;
   Fmt.pf ppf "\n"
